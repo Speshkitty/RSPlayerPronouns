@@ -1,13 +1,13 @@
-package com.example;
+package com.speshkitty.playerpronouns;
 
 import net.runelite.client.RuneLite;
 import net.runelite.client.externalplugins.ExternalPluginManager;
 
-public class ExamplePluginTest
+public class PlayerNotesPluginTest
 {
 	public static void main(String[] args) throws Exception
 	{
-		ExternalPluginManager.loadBuiltin(ExamplePlugin.class);
+		ExternalPluginManager.loadBuiltin(PlayerPronounsPlugin.class);
 		RuneLite.main(args);
 	}
 }
