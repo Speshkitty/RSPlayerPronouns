@@ -7,6 +7,7 @@ import javax.swing.plaf.SplitPaneUI;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.callback.ClientThread;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -38,6 +39,7 @@ public class PlayerPronounsPlugin extends Plugin
 	@Inject	private TooltipManager tooltipManager;
 	@Inject private ConfigManager configManager;
 	@Inject	private DatabaseAPI databaseAPI;
+	@Inject private	ClientThread thread;
 
 	protected String playerNameHashed = "";
 
@@ -66,7 +68,20 @@ public class PlayerPronounsPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
 		if(gameStateChanged.getGameState() == GameState.LOGGED_IN){
-			playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
+
+			thread.invokeLater(
+					() -> {
+						if(client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null) {
+							return false;
+						}
+						playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
+						if(playerNameHashed.isEmpty()) { return false; }
+						return true;
+					}
+			);
+			log.debug(client.getLocalPlayer().getName());
+			log.debug(databaseAPI.hashString(client.getLocalPlayer().getName()));
+
 			if(!config.pronoun().isEmpty()) {
 
 				databaseAPI.putPlayersPronoun(config.pronoun());

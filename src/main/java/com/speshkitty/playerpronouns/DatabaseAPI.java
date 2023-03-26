@@ -108,7 +108,7 @@ public class DatabaseAPI {
     }
 
     private void readFromServer() {
-        if (client.getGameState() != GameState.LOGGED_IN) {
+        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.playerNameHashed.isEmpty()) {
             return;
         }
 
@@ -132,6 +132,8 @@ public class DatabaseAPI {
         data.addProperty("senderUsername", playerPronounsPlugin.playerNameHashed);
         data.add("usernames", array);
 
+        log.debug(data.toString());
+
         RequestBody body = RequestBody.create(JSON, data.toString());
 
         Request request = new Request.Builder()
@@ -142,7 +144,7 @@ public class DatabaseAPI {
         try (Response response = okHttpClient.newCall(request).execute()) {
             if (response.body() == null) return;
             String responseString = response.body().string();
-            log.debug(responseString);
+
             if (responseString.contains("errorMessage")) {
                 return;
             }
@@ -150,7 +152,7 @@ public class DatabaseAPI {
 
             playersToLookup.forEach(s -> {
                 int val = responseObject.findIndex(s);
-                log.debug("Looking up '" + s + "' - Index is '" + val + "'");
+
                 if (val == -1) {
                     knownPronouns.putIfAbsent(s, new DatabaseData(Instant.now().getEpochSecond(), null));
                 } else {
