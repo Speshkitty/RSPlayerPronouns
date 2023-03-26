@@ -2,29 +2,21 @@ package com.speshkitty.playerpronouns;
 
 import com.google.inject.Provides;
 import javax.inject.Inject;
-import javax.swing.plaf.SplitPaneUI;
 
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.GameStateChanged;
 import net.runelite.client.callback.ClientThread;
-import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
 import net.runelite.client.events.ConfigChanged;
 import net.runelite.client.plugins.Plugin;
 import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.task.Schedule;
-import net.runelite.client.task.ScheduledMethod;
-import net.runelite.client.task.Scheduler;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 
 import java.time.temporal.ChronoUnit;
-import java.util.*;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @PluginDescriptor(

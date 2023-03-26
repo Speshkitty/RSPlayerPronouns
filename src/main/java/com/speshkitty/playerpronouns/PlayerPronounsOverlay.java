@@ -8,12 +8,10 @@ import net.runelite.client.ui.overlay.*;
 import net.runelite.client.ui.overlay.tooltip.Tooltip;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import net.runelite.client.util.Text;
-import org.slf4j.Logger;
 
 import javax.inject.Inject;
 import java.awt.*;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 
 @Slf4j

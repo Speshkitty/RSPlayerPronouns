@@ -1,6 +1,5 @@
 package com.speshkitty.playerpronouns;
 
-import jdk.nashorn.internal.objects.annotations.Setter;
 import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
