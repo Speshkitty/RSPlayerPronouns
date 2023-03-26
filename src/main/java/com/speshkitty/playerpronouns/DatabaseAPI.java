@@ -236,22 +236,20 @@ public class DatabaseAPI {
     }
 
     private boolean shouldAddNameToLookup(String name) {
-        if (name.equalsIgnoreCase(playerPronounsPlugin.playerNameHashed)) { return false; }
+        //if (name.equalsIgnoreCase(playerPronounsPlugin.playerNameHashed)) { return false; }
         if (knownPronouns.containsKey(name)) { return false; }
 
         return true;
     }
 
     protected void putPlayersPronoun(String oldPronoun) {
-        if (client.getGameState() != GameState.LOGGED_IN) {
+        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.playerNameHashed.isEmpty()) {
             return;
         }
-
-        String playerNameHashed = hashString(client.getLocalPlayer().getName());
         String pronounToPut = config.pronoun();
 
         JsonObject data = new JsonObject();
-        data.addProperty("username", playerNameHashed);
+        data.addProperty("username", playerPronounsPlugin.playerNameHashed);
         data.addProperty("pronoun", pronounToPut);
 
         RequestBody body = RequestBody.create(JSON, data.toString());

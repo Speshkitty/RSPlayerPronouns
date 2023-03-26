@@ -68,24 +68,24 @@ public class PlayerPronounsPlugin extends Plugin
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
 		if(gameStateChanged.getGameState() == GameState.LOGGED_IN){
-
 			thread.invokeLater(
-					() -> {
-						if(client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null) {
-							return false;
-						}
-						playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
-						if(playerNameHashed.isEmpty()) { return false; }
-						return true;
+				() -> {
+					if(client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null) {
+						return false;
 					}
+					playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
+					if(playerNameHashed.isEmpty()) {
+						return false;
+					}
+					else
+					{
+						if(!config.pronoun().isEmpty()) {
+							databaseAPI.putPlayersPronoun(config.pronoun());
+						}
+					}
+					return true;
+				}
 			);
-			log.debug(client.getLocalPlayer().getName());
-			log.debug(databaseAPI.hashString(client.getLocalPlayer().getName()));
-
-			if(!config.pronoun().isEmpty()) {
-
-				databaseAPI.putPlayersPronoun(config.pronoun());
-			}
 		}
 	}
 
