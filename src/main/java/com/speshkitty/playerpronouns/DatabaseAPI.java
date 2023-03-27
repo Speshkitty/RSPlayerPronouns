@@ -41,7 +41,7 @@ public class DatabaseAPI {
 
     @Inject
     private PlayerPronounsConfig config;
-    private PlayerPronounsPlugin playerPronounsPlugin;
+    private final PlayerPronounsPlugin playerPronounsPlugin;
 
     @Inject
     DatabaseAPI(PlayerPronounsPlugin playerPronounsPlugin) {
@@ -233,9 +233,7 @@ public class DatabaseAPI {
 
     private boolean shouldAddNameToLookup(String name) {
         //if (name.equalsIgnoreCase(playerPronounsPlugin.playerNameHashed)) { return false; }
-        if (knownPronouns.containsKey(name)) { return false; }
-
-        return true;
+        return !knownPronouns.containsKey(name);
     }
 
     protected void putPlayersPronoun(String oldPronoun) {
@@ -244,9 +242,15 @@ public class DatabaseAPI {
         }
         String pronounToPut = config.pronoun();
 
+        String apiKey = configManager.getConfiguration(PlayerPronounsConfig.GROUP,
+                "apikey." + playerPronounsPlugin.playerNameHashed);
+
         JsonObject data = new JsonObject();
         data.addProperty("username", playerPronounsPlugin.playerNameHashed);
         data.addProperty("pronoun", pronounToPut);
+        if(apiKey != null && !apiKey.isEmpty()) {
+            data.addProperty("apikey", apiKey);
+        }
 
         RequestBody body = RequestBody.create(JSON, data.toString());
 
@@ -260,28 +264,48 @@ public class DatabaseAPI {
             if (response.body() == null) return;
             JsonObject responseData = gson.fromJson(response.body().string(), JsonObject.class);
             JsonPrimitive statusCodePrim = responseData.getAsJsonPrimitive("statusCode");
-            int statusCode = statusCodePrim.getAsInt();
+            int statusCode;
+            if(statusCodePrim == null){
+                statusCode = 430;
+            }
+            else {
+                statusCode = statusCodePrim.getAsInt();
+            }
 
-            if (statusCode == 429) {
-                sendMessage("Unable to update pronouns - please try again later.");
-                playerPronounsPlugin.shouldUpdateConfig = false;
-                configManager.setConfiguration(
-                        PlayerPronounsConfig.GROUP,
-                        "pronoun",
-                        oldPronoun);
-            } else if (statusCode == 200) {
-                sendMessage("Pronouns updated! Please note this may take some time to sync to everyone.");
-            } else {
-                sendMessage("An unknown error occurred (Error: " + statusCode + ")");
-                playerPronounsPlugin.shouldUpdateConfig = false;
-                configManager.setConfiguration(
-                        PlayerPronounsConfig.GROUP,
-                        "pronoun",
-                        oldPronoun);
+            if(responseData.has("apikey")) {
+                configManager.setConfiguration(PlayerPronounsConfig.GROUP,
+                        "apikey." + playerPronounsPlugin.playerNameHashed,
+                        responseData.getAsJsonPrimitive("apikey").getAsString());
+                sendMessage("API key has been received and set, and is stored in your RuneLite config. Do not share this!");
+                sendMessage("If you lose this, you will not be able to update your pronoun until it is removed from the database!");
+            }
+
+            switch(statusCode) {
+                case 429:
+                    sendMessage("Unable to update pronouns - please try again later.");
+                    resetPronounConfig(oldPronoun);
+                    break;
+                case 200:
+                    sendMessage("Pronouns updated! Please note this may take some time to sync to everyone.");
+                    break;
+                case 403:
+                    sendMessage("Unable to update pronouns - invalid API key provided.");
+                    resetPronounConfig(oldPronoun);
+                    break;
+                default:
+                    sendMessage("An unknown error occurred (Error: " + statusCode + ")");
+                    resetPronounConfig(oldPronoun);
+                    break;
             }
         } catch (IOException e) {
             log.error("Error putting data to server!");
         }
+    }
+
+    private void resetPronounConfig(String pronoun){
+        playerPronounsPlugin.shouldUpdateConfig = false;
+        configManager.setConfiguration(PlayerPronounsConfig.GROUP,"pronoun", pronoun);
+        playerPronounsPlugin.shouldUpdateConfig = true;
     }
 
     protected void cleanUpData() {
