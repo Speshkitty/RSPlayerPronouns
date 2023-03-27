@@ -33,8 +33,8 @@ public class DatabaseAPI {
     private static HashMap<String, DatabaseData> knownPronouns = new HashMap<>();
     private boolean cacheIsDirty = false;
 
-    private static OkHttpClient okHttpClient = new OkHttpClient();
-
+    @Inject private OkHttpClient okHttpClient;
+    @Inject private Gson gson;
     @Inject private Client client;
 
     @Inject private ConfigManager configManager;
@@ -95,7 +95,6 @@ public class DatabaseAPI {
     private void readFromFile() {
         try {
             FileReader reader = new FileReader(localCacheFile);
-            Gson gson = new Gson();
             knownPronouns = gson.fromJson(reader, typeMyType);
             if (knownPronouns == null) {
                 knownPronouns = new HashMap<>();
@@ -123,9 +122,6 @@ public class DatabaseAPI {
         if (playersToLookup.size() == 0) { // Nothing to lookup
             return;
         }
-
-        GsonBuilder builder = new GsonBuilder();
-        Gson gson = builder.create();
 
         JsonArray array = gson.toJsonTree(playersToLookup.toArray()).getAsJsonArray();
         JsonObject data = new JsonObject();
@@ -260,7 +256,6 @@ public class DatabaseAPI {
                 .build();
 
         try (Response response = okHttpClient.newCall(request).execute()) {
-            Gson gson = new Gson();
 
             if (response.body() == null) return;
             JsonObject responseData = gson.fromJson(response.body().string(), JsonObject.class);
@@ -314,10 +309,8 @@ public class DatabaseAPI {
 
         tryCreateFile();
         try {
-            GsonBuilder builder = new GsonBuilder();
-            builder.serializeNulls();
-            Gson gson = builder.create();
-            String jsonData = gson.toJson(knownPronouns);
+            Gson gson2 = gson.newBuilder().serializeNulls().create();
+            String jsonData = gson2.toJson(knownPronouns);
 
             FileWriter dataFile = new FileWriter(localCacheFile);
             dataFile.write(jsonData);
