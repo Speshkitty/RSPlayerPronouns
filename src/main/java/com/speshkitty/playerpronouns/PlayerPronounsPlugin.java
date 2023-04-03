@@ -75,7 +75,7 @@ public class PlayerPronounsPlugin extends Plugin
 		return configManager.getConfig(PlayerPronounsConfig.class);
 	}
 
-	boolean logging_in = false;
+	private boolean logging_in = false;
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
@@ -84,6 +84,7 @@ public class PlayerPronounsPlugin extends Plugin
 		}
 		//our last state was logging in
 		if(logging_in && gameStateChanged.getGameState() == GameState.LOGGED_IN){
+			logging_in = false;
 			thread.invokeLater(
 				() -> {
 					if(client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null) {
