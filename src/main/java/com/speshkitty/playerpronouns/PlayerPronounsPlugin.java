@@ -33,7 +33,22 @@ public class PlayerPronounsPlugin extends Plugin
 	@Inject	private DatabaseAPI databaseAPI;
 	@Inject private	ClientThread thread;
 
-	protected String playerNameHashed = "";
+	private String playerNameHashed = "";
+
+	protected String getPlayerNameHashed() {
+		if(playerNameHashed.isEmpty())
+		{
+			if(client.getLocalPlayer() == null) {
+				return "";
+			}
+			if(client.getLocalPlayer().getName() == null){
+				return "";
+			}
+			playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
+		}
+
+		return playerNameHashed;
+	}
 
 	final int maxPronounLength = 25;
 
@@ -41,6 +56,9 @@ public class PlayerPronounsPlugin extends Plugin
 	protected void startUp() throws Exception
 	{
 		overlayManager.add(overlay);
+		if(client.getGameState() == GameState.LOGGED_IN){
+			getPlayerNameHashed();
+		}
 		log.info("Player Pronouns started!");
 	}
 

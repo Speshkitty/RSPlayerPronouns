@@ -107,7 +107,7 @@ public class DatabaseAPI {
     }
 
     private void readFromServer() {
-        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.playerNameHashed.isEmpty()) {
+        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
             return;
         }
 
@@ -125,7 +125,7 @@ public class DatabaseAPI {
 
         JsonArray array = gson.toJsonTree(playersToLookup.toArray()).getAsJsonArray();
         JsonObject data = new JsonObject();
-        data.addProperty("senderUsername", playerPronounsPlugin.playerNameHashed);
+        data.addProperty("senderUsername", playerPronounsPlugin.getPlayerNameHashed());
         data.add("usernames", array);
 
         log.debug(data.toString());
@@ -237,16 +237,16 @@ public class DatabaseAPI {
     }
 
     protected void putPlayersPronoun(String oldPronoun) {
-        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.playerNameHashed.isEmpty()) {
+        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
             return;
         }
         String pronounToPut = config.pronoun();
 
         String apiKey = configManager.getConfiguration(PlayerPronounsConfig.GROUP,
-                "apikey." + playerPronounsPlugin.playerNameHashed);
+                "apikey." + playerPronounsPlugin.getPlayerNameHashed());
 
         JsonObject data = new JsonObject();
-        data.addProperty("username", playerPronounsPlugin.playerNameHashed);
+        data.addProperty("username", playerPronounsPlugin.getPlayerNameHashed());
         data.addProperty("pronoun", pronounToPut);
         if(apiKey != null && !apiKey.isEmpty()) {
             data.addProperty("apikey", apiKey);
@@ -274,7 +274,7 @@ public class DatabaseAPI {
 
             if(responseData.has("apikey")) {
                 configManager.setConfiguration(PlayerPronounsConfig.GROUP,
-                        "apikey." + playerPronounsPlugin.playerNameHashed,
+                        "apikey." + playerPronounsPlugin.getPlayerNameHashed(),
                         responseData.getAsJsonPrimitive("apikey").getAsString());
                 sendMessage("API key has been received and set, and is stored in your RuneLite config. Do not share this!");
                 sendMessage("If you lose this, you will not be able to update your pronoun until it is removed from the database!");
