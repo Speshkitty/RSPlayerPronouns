@@ -30,7 +30,7 @@ public class DatabaseAPI {
     private static final String localCacheFolder = RuneLite.RUNELITE_DIR + "/pronouns";
     private static final String localCacheFile = localCacheFolder + "/pronouns.json";
 
-    private static HashMap<String, DatabaseData> knownPronouns = new HashMap<>();
+    private HashMap<String, DatabaseData> knownPronouns = new HashMap<>();
     private boolean cacheIsDirty = false;
 
     @Inject private OkHttpClient okHttpClient;
@@ -52,6 +52,11 @@ public class DatabaseAPI {
 
     @Inject
     private ChatMessageManager chatMessageManager;
+
+    protected void destroy(){
+        knownPronouns = new HashMap<>();
+        cacheIsDirty = false;
+    }
 
     private void tryCreateFile() {
         try {
