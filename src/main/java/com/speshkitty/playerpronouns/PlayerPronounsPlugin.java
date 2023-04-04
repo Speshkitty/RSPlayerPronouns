@@ -66,6 +66,7 @@ public class PlayerPronounsPlugin extends Plugin
 	protected void shutDown() throws Exception
 	{
 		overlayManager.remove(overlay);
+		databaseAPI.destroy();
 		log.info("Player Pronouns stopped!");
 	}
 
