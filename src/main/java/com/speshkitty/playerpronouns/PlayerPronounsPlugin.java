@@ -15,6 +15,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.task.Schedule;
 import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
+import net.runelite.client.util.Text;
 
 import java.time.temporal.ChronoUnit;
 
@@ -44,7 +45,8 @@ public class PlayerPronounsPlugin extends Plugin
 			if(client.getLocalPlayer().getName() == null){
 				return "";
 			}
-			playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
+
+			playerNameHashed = databaseAPI.hashString(Text.standardize(client.getLocalPlayer().getName()));
 		}
 
 		return playerNameHashed;
@@ -98,7 +100,7 @@ public class PlayerPronounsPlugin extends Plugin
 					else
 					{
 						if(!config.pronoun().isEmpty()) {
-							databaseAPI.putPlayersPronoun(config.pronoun());
+							databaseAPI.putPlayersPronoun(config.presetPronoun(), true);
 						}
 					}
 					return true;
@@ -116,21 +118,12 @@ public class PlayerPronounsPlugin extends Plugin
 			shouldUpdateConfig = true;
 			return;
 		}
-		if (configChanged.getGroup().equals(PlayerPronounsConfig.GROUP))
-		{
-			if(configChanged.getKey().equalsIgnoreCase("pronoun"))
-			{
-				if(configChanged.getNewValue().length() > maxPronounLength) {
-					shouldUpdateConfig = false;
-					configManager.setConfiguration(
-							PlayerPronounsConfig.GROUP,
-							"pronoun",
-							configChanged.getOldValue());
-				}
-				else {
-					databaseAPI.putPlayersPronoun(configChanged.getOldValue());
-				}
-			}
+		if (!configChanged.getGroup().equals(PlayerPronounsConfig.GROUP)){
+			return;
+		}
+		if ("presetPronoun".equals(configChanged.getKey())) {
+			Pronoun oldPronoun = Pronoun.valueOf(configChanged.getOldValue());
+			databaseAPI.putPlayersPronoun(oldPronoun, false);
 		}
 	}
 

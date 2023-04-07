@@ -4,6 +4,7 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
+import net.runelite.api.clan.ClanChannelMember;
 import net.runelite.api.clan.ClanMember;
 import net.runelite.api.clan.ClanSettings;
 import net.runelite.client.RuneLite;
@@ -187,7 +188,6 @@ public class DatabaseAPI {
         if(clan == null) { //Player isn't in a clan/guest clan
             return toReturn;
         }
-
         for (ClanMember clanMember : clan.getMembers()) {
             if (clanMember == null) {
                 continue;
@@ -242,11 +242,11 @@ public class DatabaseAPI {
         return !knownPronouns.containsKey(name);
     }
 
-    protected void putPlayersPronoun(String oldPronoun) {
+    protected void putPlayersPronoun(Pronoun oldPronoun, boolean isLoginTriggered) {
         if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
             return;
         }
-        String pronounToPut = config.pronoun();
+        int pronounToPut = config.presetPronoun().getInternalValue();
 
         String apiKey = configManager.getConfiguration(PlayerPronounsConfig.GROUP,
                 "apikey." + playerPronounsPlugin.getPlayerNameHashed());
@@ -260,6 +260,8 @@ public class DatabaseAPI {
 
         RequestBody body = RequestBody.create(JSON, data.toString());
 
+        log.debug(data.toString());
+
         Request request = new Request.Builder()
                 .url(apiAddress)
                 .put(body)
@@ -270,13 +272,10 @@ public class DatabaseAPI {
             if (response.body() == null) return;
             JsonObject responseData = gson.fromJson(response.body().string(), JsonObject.class);
             JsonPrimitive statusCodePrim = responseData.getAsJsonPrimitive("statusCode");
-            int statusCode;
-            if(statusCodePrim == null){
-                statusCode = 430;
-            }
-            else {
-                statusCode = statusCodePrim.getAsInt();
-            }
+            JsonPrimitive responseMessagePrim = responseData.getAsJsonPrimitive("body");
+
+            int statusCode = statusCodePrim == null ? 430 : statusCodePrim.getAsInt();
+            String responseMessage = responseMessagePrim == null ? "" : responseMessagePrim.getAsString();
 
             if(responseData.has("apikey")) {
                 configManager.setConfiguration(PlayerPronounsConfig.GROUP,
@@ -286,31 +285,20 @@ public class DatabaseAPI {
                 sendMessage("If you lose this, you will not be able to update your pronoun until it is removed from the database!");
             }
 
-            switch(statusCode) {
-                case 429:
-                    sendMessage("Unable to update pronouns - please try again later.");
-                    resetPronounConfig(oldPronoun);
-                    break;
-                case 200:
-                    sendMessage("Pronouns updated! Please note this may take some time to sync to everyone.");
-                    break;
-                case 403:
-                    sendMessage("Unable to update pronouns - invalid API key provided.");
-                    resetPronounConfig(oldPronoun);
-                    break;
-                default:
-                    sendMessage("An unknown error occurred (Error: " + statusCode + ")");
-                    resetPronounConfig(oldPronoun);
-                    break;
+            if (statusCode == 200) {
+                if (!isLoginTriggered) sendMessage(responseMessage);
+            } else {
+                if (!isLoginTriggered) sendMessage("Error " + statusCode + " - " + responseMessage);
+                resetPronounConfig(oldPronoun);
             }
         } catch (IOException e) {
             log.error("Error putting data to server!");
         }
     }
 
-    private void resetPronounConfig(String pronoun){
+    private void resetPronounConfig(Pronoun pronoun){
         playerPronounsPlugin.shouldUpdateConfig = false;
-        configManager.setConfiguration(PlayerPronounsConfig.GROUP,"pronoun", pronoun);
+        configManager.setConfiguration(PlayerPronounsConfig.GROUP,"presetPronoun", pronoun);
         playerPronounsPlugin.shouldUpdateConfig = true;
     }
 
@@ -339,8 +327,15 @@ public class DatabaseAPI {
 
         tryCreateFile();
         try {
-            Gson gson2 = gson.newBuilder().serializeNulls().create();
-            String jsonData = gson2.toJson(knownPronouns);
+            HashMap<String, DatabaseData> toSave = new HashMap<>();
+
+            knownPronouns.forEach((hashedName, data) -> {
+                if (data != null && data.getPronoun() != null && !data.getPronoun().isEmpty()) {
+                    toSave.put(hashedName, data);
+                }
+            });
+
+            String jsonData = gson.toJson(toSave);
 
             FileWriter dataFile = new FileWriter(localCacheFile);
             dataFile.write(jsonData);

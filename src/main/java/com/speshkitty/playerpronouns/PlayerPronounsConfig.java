@@ -10,9 +10,20 @@ public interface PlayerPronounsConfig extends Config
 	String GROUP = "playerpronouns";
 
 	@ConfigItem(
-		keyName = "pronoun",
-		name = "Pronoun",
-		description = "Your pronoun!"
+			position = 1,
+			keyName = "presetPronoun",
+			name = "Pronoun",
+			description = "Your pronoun!"
+	)
+	default Pronoun presetPronoun() {
+		return Pronoun.ASK;
+	}
+
+	@ConfigItem(
+			keyName = "pronoun",
+			name = "Custom Pronoun",
+			description = "Custom entered pronoun. Please be aware this is manually approved.",
+			hidden=true
 	)
 	default String pronoun() { return ""; }
 }
