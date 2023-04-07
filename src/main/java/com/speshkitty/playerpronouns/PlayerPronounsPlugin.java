@@ -46,7 +46,7 @@ public class PlayerPronounsPlugin extends Plugin
 				return "";
 			}
 
-			playerNameHashed = databaseAPI.hashString(Text.standardize(client.getLocalPlayer().getName()));
+			playerNameHashed = databaseAPI.hashString(Text.removeTags(client.getLocalPlayer().getName()));
 		}
 
 		return playerNameHashed;
