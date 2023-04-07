@@ -10,6 +10,7 @@ import net.runelite.client.RuneLite;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
+import net.runelite.client.util.Text;
 import okhttp3.*;
 
 import javax.inject.Inject;
@@ -363,9 +364,10 @@ public class DatabaseAPI {
         if (input == null) {
             return "";
         }
+        String cleanedName = Text.removeTags(input);
         try {
             MessageDigest digest = MessageDigest.getInstance("MD5");
-            byte[] hash = digest.digest(input.getBytes(StandardCharsets.UTF_8));
+            byte[] hash = digest.digest(cleanedName.getBytes(StandardCharsets.UTF_8));
             StringBuilder hexString = new StringBuilder(2 * hash.length);
             for (byte b : hash) {
                 String hex = Integer.toHexString(0xff & b);
