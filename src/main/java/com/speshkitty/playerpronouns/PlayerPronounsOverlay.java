@@ -55,8 +55,8 @@ public class PlayerPronounsOverlay extends Overlay {
                 case "Message":
                 case "Remove friend":
                     String target = Text.removeTags(entry.getTarget()).replace('\u00A0', ' ').trim();
-                    String heldText = databaseAPI.findUserPronouns(target);
 
+                    String heldText = databaseAPI.findUserPronouns(target);
                     if (heldText != null && !heldText.isEmpty()) {
                         tooltipManager.add(new Tooltip(heldText));
                     }

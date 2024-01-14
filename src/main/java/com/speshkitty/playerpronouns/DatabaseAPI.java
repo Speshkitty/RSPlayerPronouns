@@ -4,10 +4,6 @@ import com.google.common.reflect.TypeToken;
 import com.google.gson.*;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
-import net.runelite.api.clan.ClanChannelMember;
-import net.runelite.api.clan.ClanMember;
-import net.runelite.api.clan.ClanSettings;
-import net.runelite.client.RuneLite;
 import net.runelite.client.chat.ChatMessageManager;
 import net.runelite.client.chat.QueuedMessage;
 import net.runelite.client.config.ConfigManager;
@@ -21,19 +17,17 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.*;
 import java.util.*;
+import java.util.zip.GZIPInputStream;
 
 @Slf4j
 @Singleton
 public class DatabaseAPI {
     private static final MediaType JSON = MediaType.parse("text/json");
     private static final String apiAddress = "https://sx055om2ka.execute-api.eu-west-2.amazonaws.com/publish/";
-    private static final String localCacheFolder = RuneLite.RUNELITE_DIR + "/pronouns";
-    private static final String localCacheFile = localCacheFolder + "/pronouns.json";
+    private static final String lookupAddress = "https://osrs-pronouns-plugin.s3.eu-west-2.amazonaws.com/latest.txt";
 
-    private HashMap<String, DatabaseData> knownPronouns = new HashMap<>();
-    private boolean cacheIsDirty = false;
+    private HashMap<String, String> knownPronouns = new HashMap<>();
 
     @Inject private OkHttpClient okHttpClient;
     @Inject private Gson gson;
@@ -48,8 +42,6 @@ public class DatabaseAPI {
     @Inject
     DatabaseAPI(PlayerPronounsPlugin playerPronounsPlugin) {
         this.playerPronounsPlugin = playerPronounsPlugin;
-
-        tryCreateFile();
     }
 
     @Inject
@@ -57,189 +49,63 @@ public class DatabaseAPI {
 
     protected void destroy(){
         knownPronouns = new HashMap<>();
-        cacheIsDirty = false;
-    }
-
-    private void tryCreateFile() {
-        try {
-            if (new File(localCacheFolder).mkdir()) {
-                log.debug("Created folder: " + localCacheFolder);
-            }
-            if (new File(localCacheFile).createNewFile()) {
-                log.debug("Created file: " + localCacheFile);
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     protected String findUserPronouns(String username) {
         String hashedName = hashString(username);
-        if (knownPronouns.containsKey(hashedName)) {
-            DatabaseData data = knownPronouns.get(hashedName);
-            if (data == null || data.getPronoun() == null) {
-                return "";
-            }
-            return knownPronouns.get(hashedName).getPronoun();
-        } else {
-            return "";
-        }
-    }
-
-    protected void getData() {
-        tryCreateFile();
-        if (knownPronouns.size() == 0) {
-            readFromFile();
-            log.debug("Read " + knownPronouns.size() + " items from file!");
-        }
-
-        readFromServer();
+        //log.debug(String.format("\"%s\" hashed to \"%s\"", username, hashedName)); Commented due to spammy
+        return knownPronouns.getOrDefault(hashedName, "");
     }
 
     //Annoying workaround to make gson work right
-    Type typeMyType = new TypeToken<HashMap<String, DatabaseData>>() {}.getType();
+    Type typeMyType = new TypeToken<List<DataBean>>() {}.getType();
 
-    private void readFromFile() {
-        try {
-            FileReader reader = new FileReader(localCacheFile);
-            knownPronouns = gson.fromJson(reader, typeMyType);
-            if (knownPronouns == null) {
-                knownPronouns = new HashMap<>();
-                return;
-            }
-            cacheIsDirty = true;
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void readFromServer() {
-        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
-            return;
-        }
-
-        List<String> playersToLookup = new ArrayList<>();
-
-        playersToLookup.addAll(addCachedPlayers());
-        playersToLookup.addAll(addClanPlayers(client.getClanSettings()));
-        playersToLookup.addAll(addClanPlayers(client.getGuestClanSettings()));
-        playersToLookup.addAll(addFriendsChatPlayers());
-        playersToLookup.addAll(addFriendsList());
-
-        if (playersToLookup.size() == 0) { // Nothing to lookup
-            return;
-        }
-
-        JsonArray array = gson.toJsonTree(playersToLookup.toArray()).getAsJsonArray();
-        JsonObject data = new JsonObject();
-        data.addProperty("senderUsername", playerPronounsPlugin.getPlayerNameHashed());
-        data.add("usernames", array);
-
-        log.debug(data.toString());
-
-        RequestBody body = RequestBody.create(JSON, data.toString());
+    protected void readFromServer() {
+        log.debug("Beginning read from server...");
 
         Request request = new Request.Builder()
-                .url(apiAddress)
-                .post(body)
+                .url(lookupAddress)
+                .get()
                 .build();
 
         try (Response response = okHttpClient.newCall(request).execute()) {
+            log.debug("Request sent");
             if (response.body() == null) return;
-            String responseString = response.body().string();
+            ResponseBody responseBody = response.body();
+            log.debug("Response received!");
 
-            if (responseString.contains("errorMessage")) {
-                return;
-            }
-            final ResponseObject responseObject = gson.fromJson(responseString, ResponseObject.class);
-
-            playersToLookup.forEach(s -> {
-                int val = responseObject.findIndex(s);
-
-                if (val == -1) {
-                    knownPronouns.putIfAbsent(s, new DatabaseData(Instant.now().getEpochSecond(), null));
-                } else {
-                    knownPronouns.putIfAbsent(s, new DatabaseData(Instant.now().getEpochSecond(), responseObject.getBody().get(val).getPronoun()));
+            String decompressed;
+            try (final GZIPInputStream gzipInput = new GZIPInputStream(responseBody.byteStream())
+                 ) {
+                StringBuilder writer = new StringBuilder ();
+                int b ;
+                while((b = gzipInput.read()) != -1) {
+                    writer.append((char)b);
                 }
-                cacheIsDirty = true;
-            });
+                decompressed = writer.toString(); //tasty JSON data
+
+
+            } catch (IOException e) {
+                throw new UncheckedIOException("Error while decompressing GZIP!", e);
+            }
+
+            try {
+                List<DataBean> test = gson.fromJson(decompressed, typeMyType);
+                knownPronouns.clear();
+                for(DataBean bean : test){
+                    knownPronouns.put(bean.getId(), bean.getPronoun());
+                }
+            }
+            catch (Exception e){
+                sendMessage("There was an error loading pronoun data from the server!");
+                sendMessage("This will be automatically retried in 30 minutes.");
+                log.error("Error parsing json!");
+                e.printStackTrace();
+            }
+
         } catch (IOException e) {
             log.error("Error communicating with server!");
         }
-        saveDataToFile();
-    }
-
-    private List<String> addCachedPlayers() {
-        List<String> toReturn = new ArrayList<>();
-        for (Player cachedPlayer : client.getCachedPlayers()) {
-            if (cachedPlayer == null) {
-                continue;
-            }
-            String hashedTarget = hashString(cachedPlayer.getName());
-
-            if (shouldAddNameToLookup(hashedTarget)) {
-                toReturn.add(hashedTarget);
-            }
-        }
-        return toReturn;
-    }
-    private List<String> addClanPlayers(ClanSettings clan) {
-        List<String> toReturn = new ArrayList<>();
-        if(clan == null) { //Player isn't in a clan/guest clan
-            return toReturn;
-        }
-        for (ClanMember clanMember : clan.getMembers()) {
-            if (clanMember == null) {
-                continue;
-            }
-            String hashedTarget = hashString(clanMember.getName());
-
-            if (shouldAddNameToLookup(hashedTarget)) {
-                toReturn.add(hashedTarget);
-            }
-        }
-        return toReturn;
-    }
-    private List<String> addFriendsChatPlayers() {
-        List<String> toReturn = new ArrayList<>();
-        if(client.getFriendsChatManager() == null) { //Player isn't in a friends chat
-            return toReturn;
-        }
-
-        for (FriendsChatMember friendsChatMember : client.getFriendsChatManager().getMembers()) {
-            if (friendsChatMember == null) {
-                continue;
-            }
-            String hashedTarget = hashString(friendsChatMember.getName());
-
-            if (shouldAddNameToLookup(hashedTarget)) {
-                toReturn.add(hashedTarget);
-            }
-        }
-        return toReturn;
-    }
-    private List<String> addFriendsList(){
-        List<String> toReturn = new ArrayList<>();
-        if(client.getFriendContainer() == null) { //Player isn't in a friends chat
-            return toReturn;
-        }
-
-        for (Friend friend : client.getFriendContainer().getMembers()) {
-            if (friend == null) {
-                continue;
-            }
-            String hashedTarget = hashString(friend.getName());
-
-            if (shouldAddNameToLookup(hashedTarget)) {
-                toReturn.add(hashedTarget);
-            }
-        }
-        return toReturn;
-    }
-
-    private boolean shouldAddNameToLookup(String name) {
-        //if (name.equalsIgnoreCase(playerPronounsPlugin.playerNameHashed)) { return false; }
-        return !knownPronouns.containsKey(name);
     }
 
     protected void putPlayersPronoun(Pronoun oldPronoun, boolean isLoginTriggered) {
@@ -260,7 +126,7 @@ public class DatabaseAPI {
 
         RequestBody body = RequestBody.create(JSON, data.toString());
 
-        log.debug(data.toString());
+        //log.debug(data.toString());
 
         Request request = new Request.Builder()
                 .url(apiAddress)
@@ -275,7 +141,7 @@ public class DatabaseAPI {
             JsonPrimitive responseMessagePrim = responseData.getAsJsonPrimitive("body");
 
             int statusCode = statusCodePrim == null ? 430 : statusCodePrim.getAsInt();
-            String responseMessage = responseMessagePrim == null ? "" : responseMessagePrim.getAsString();
+            String responseMessage = responseMessagePrim == null ? "You are likely being rate limited!" : responseMessagePrim.getAsString();
 
             if(responseData.has("apikey")) {
                 configManager.setConfiguration(PlayerPronounsConfig.GROUP,
@@ -300,51 +166,6 @@ public class DatabaseAPI {
         playerPronounsPlugin.shouldUpdateConfig = false;
         configManager.setConfiguration(PlayerPronounsConfig.GROUP,"presetPronoun", pronoun);
         playerPronounsPlugin.shouldUpdateConfig = true;
-    }
-
-    protected void cleanUpData() {
-        for (Map.Entry<String, DatabaseData> value : new HashMap<>(knownPronouns).entrySet()) {
-            Instant timeCreated = Instant.ofEpochSecond(value.getValue().getRetrievedAt());
-            Instant destroyAfter;
-            if(value.getValue().getPronoun() == null || value.getValue().getPronoun().isEmpty()) {
-                destroyAfter = timeCreated.plus(Period.ofDays(1)); //Check daily if no pronoun is known
-            } else {
-                destroyAfter = timeCreated.plus(Period.ofDays(14)); //Otherwise, wait 2 weeks to save my server from being bullied
-            }
-            if (Instant.now().isAfter(destroyAfter)) {
-                knownPronouns.remove(value.getKey());
-                cacheIsDirty = true;
-            }
-        }
-
-        saveDataToFile();
-    }
-
-    protected void saveDataToFile() {
-        if (!cacheIsDirty) {
-            return;
-        }
-
-        tryCreateFile();
-        try {
-            HashMap<String, DatabaseData> toSave = new HashMap<>();
-
-            knownPronouns.forEach((hashedName, data) -> {
-                if (data != null && data.getPronoun() != null && !data.getPronoun().isEmpty()) {
-                    toSave.put(hashedName, data);
-                }
-            });
-
-            String jsonData = gson.toJson(toSave);
-
-            FileWriter dataFile = new FileWriter(localCacheFile);
-            dataFile.write(jsonData);
-            dataFile.close();
-            cacheIsDirty = false;
-        } catch (IOException e) {
-            log.error("Error saving data!");
-            e.printStackTrace();
-        }
     }
 
     private void sendMessage(String message){

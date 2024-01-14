@@ -6,6 +6,7 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.GameStateChanged;
+import net.runelite.client.RuneLite;
 import net.runelite.client.callback.ClientThread;
 import net.runelite.client.config.ConfigManager;
 import net.runelite.client.eventbus.Subscribe;
@@ -17,6 +18,7 @@ import net.runelite.client.ui.overlay.OverlayManager;
 import net.runelite.client.ui.overlay.tooltip.TooltipManager;
 import net.runelite.client.util.Text;
 
+import java.io.File;
 import java.time.temporal.ChronoUnit;
 
 @Slf4j
@@ -52,16 +54,23 @@ public class PlayerPronounsPlugin extends Plugin
 		return playerNameHashed;
 	}
 
-	final int maxPronounLength = 25;
-
 	@Override
 	protected void startUp() throws Exception
 	{
+		log.info("Player Pronouns started!");
 		overlayManager.add(overlay);
 		if(client.getGameState() == GameState.LOGGED_IN){
 			getPlayerNameHashed();
 		}
-		log.info("Player Pronouns started!");
+
+		if(new File(RuneLite.RUNELITE_DIR + "/pronouns/pronouns.json").delete()){
+			log.debug("Deleted file: " + RuneLite.RUNELITE_DIR + "/pronouns/pronouns.json");
+		}
+		if(new File(RuneLite.RUNELITE_DIR + "/pronouns").delete()){
+			log.debug("Deleted folder: " + RuneLite.RUNELITE_DIR + "/pronouns");
+		}
+
+		databaseAPI.readFromServer();
 	}
 
 	@Override
@@ -90,6 +99,7 @@ public class PlayerPronounsPlugin extends Plugin
 			logging_in = false;
 			thread.invokeLater(
 				() -> {
+
 					if(client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null) {
 						return false;
 					}
@@ -128,12 +138,11 @@ public class PlayerPronounsPlugin extends Plugin
 	}
 
 	@Schedule(
-			period = 5,
-			unit = ChronoUnit.SECONDS,
+			period = 30,
+			unit = ChronoUnit.MINUTES,
 			asynchronous = true
 	)
 	public void lookupData(){
-		databaseAPI.cleanUpData();
-		databaseAPI.getData();
+		databaseAPI.readFromServer();
 	}
 }
