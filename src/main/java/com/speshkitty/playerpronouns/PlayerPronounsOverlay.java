@@ -48,42 +48,48 @@ public class PlayerPronounsOverlay extends Overlay {
         List<Player> checkedPlayers = new ArrayList<>();
 
         MenuEntry[] list = client.getMenuEntries();
-        for(MenuEntry entry : list) {
-            switch (entry.getOption()) {
 
-                case "Add friend":
-                case "Message":
-                case "Remove friend":
-                    String target = Text.removeTags(entry.getTarget()).replace('\u00A0', ' ').trim();
+        if(config.showInChat()) {
+            for (MenuEntry entry : list) {
+                switch (entry.getOption()) {
 
-                    String heldText = databaseAPI.findUserPronouns(target);
-                    if (heldText != null && !heldText.isEmpty()) {
-                        tooltipManager.add(new Tooltip(heldText));
-                    }
-                    return null;
-                default:
-                    break;
+                    case "Add friend":
+                    case "Message":
+                    case "Remove friend":
+                        String target = Text.removeTags(entry.getTarget()).replace('\u00A0', ' ').trim();
 
+                        String heldText = databaseAPI.findUserPronouns(target);
+                        if (heldText != null && !heldText.isEmpty()) {
+                            tooltipManager.add(new Tooltip(heldText));
+                        }
+                        return null;
+                    default:
+                        break;
+
+                }
             }
         }
 
-        Player foundPlayer;
-        for(MenuEntry entry : list){
-            if((foundPlayer = entry.getPlayer()) == null || checkedPlayers.contains(foundPlayer)){
-                continue;
+        if(config.showInWorld()) {
+
+            Player foundPlayer;
+            for (MenuEntry entry : list) {
+                if ((foundPlayer = entry.getPlayer()) == null || checkedPlayers.contains(foundPlayer)) {
+                    continue;
+                }
+                checkedPlayers.add(foundPlayer);
             }
-            checkedPlayers.add(foundPlayer);
-        }
 
-        int numPlayersInList = checkedPlayers.size();
+            int numPlayersInList = checkedPlayers.size();
 
-        for(Player p : checkedPlayers) {
-            String heldText = databaseAPI.findUserPronouns(p.getName());
-            if(heldText != null && !heldText.isEmpty()) {
-                if (numPlayersInList == 1) {
+            for (Player p : checkedPlayers) {
+                String heldText = databaseAPI.findUserPronouns(p.getName());
+                if (heldText != null && !heldText.isEmpty()) {
+                    if (numPlayersInList == 1) {
                         tooltipManager.add(new Tooltip(heldText));
-                } else {
+                    } else {
                         tooltipManager.add(new Tooltip(p.getName() + ": " + heldText));
+                    }
                 }
             }
         }
