@@ -3,6 +3,7 @@ package com.speshkitty.playerpronouns;
 import com.google.inject.Provides;
 import javax.inject.Inject;
 
+import com.sun.jna.platform.win32.Guid;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.GameStateChanged;
@@ -52,6 +53,17 @@ public class PlayerPronounsPlugin extends Plugin
 		}
 
 		return playerNameHashed;
+	}
+
+	String getOrCreateApiKey(){
+		String keyLocation = "apikey." + getPlayerNameHashed();
+		String key = configManager.getConfiguration(PlayerPronounsConfig.GROUP, keyLocation);
+
+		if(key == null || key.isEmpty()) {
+			key = String.valueOf(Guid.GUID.newGuid());
+			configManager.setConfiguration(PlayerPronounsConfig.GROUP, keyLocation, key);
+		}
+		return key;
 	}
 
 	@Override

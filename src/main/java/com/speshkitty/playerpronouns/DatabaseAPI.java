@@ -109,20 +109,20 @@ public class DatabaseAPI {
     }
 
     protected void putPlayersPronoun(Pronoun oldPronoun, boolean isLoginTriggered) {
+
         if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
             return;
         }
+        log.debug("Beginning pronoun update");
         int pronounToPut = config.presetPronoun().getInternalValue();
 
-        String apiKey = configManager.getConfiguration(PlayerPronounsConfig.GROUP,
-                "apikey." + playerPronounsPlugin.getPlayerNameHashed());
+        String apiKey = playerPronounsPlugin.getOrCreateApiKey();
 
         JsonObject data = new JsonObject();
         data.addProperty("username", playerPronounsPlugin.getPlayerNameHashed());
         data.addProperty("pronoun", pronounToPut);
-        if(apiKey != null && !apiKey.isEmpty()) {
-            data.addProperty("apikey", apiKey);
-        }
+
+        data.addProperty("apikey", apiKey);
 
         RequestBody body = RequestBody.create(JSON, data.toString());
 
