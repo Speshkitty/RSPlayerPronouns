@@ -21,6 +21,9 @@ import net.runelite.client.util.Text;
 
 import java.io.File;
 import java.time.temporal.ChronoUnit;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @PluginDescriptor(
@@ -67,22 +70,21 @@ public class PlayerPronounsPlugin extends Plugin
 	}
 
 	@Override
-	protected void startUp() throws Exception
-	{
-		log.info("Player Pronouns started!");
+	protected void startUp() throws Exception {
+		log.info("Player Pronouns starting...");
 		overlayManager.add(overlay);
-		if(client.getGameState() == GameState.LOGGED_IN){
+		if (client.getGameState() == GameState.LOGGED_IN) {
 			getPlayerNameHashed();
 		}
 
-		if(new File(RuneLite.RUNELITE_DIR + "/pronouns/pronouns.json").delete()){
+		if (new File(RuneLite.RUNELITE_DIR + "/pronouns/pronouns.json").delete()) {
 			log.debug("Deleted file: " + RuneLite.RUNELITE_DIR + "/pronouns/pronouns.json");
 		}
-		if(new File(RuneLite.RUNELITE_DIR + "/pronouns").delete()){
+		if (new File(RuneLite.RUNELITE_DIR + "/pronouns").delete()) {
 			log.debug("Deleted folder: " + RuneLite.RUNELITE_DIR + "/pronouns");
 		}
-
 		databaseAPI.readFromServer();
+		log.info("Player Pronouns started!");
 	}
 
 	@Override
@@ -134,8 +136,7 @@ public class PlayerPronounsPlugin extends Plugin
 	boolean shouldUpdateConfig = true;
 
 	@Subscribe
-	public void onConfigChanged(ConfigChanged configChanged)
-	{
+	public void onConfigChanged(ConfigChanged configChanged) throws ExecutionException, InterruptedException {
 		if(!shouldUpdateConfig) {
 			shouldUpdateConfig = true;
 			return;
@@ -154,7 +155,7 @@ public class PlayerPronounsPlugin extends Plugin
 			unit = ChronoUnit.MINUTES,
 			asynchronous = true
 	)
-	public void lookupData(){
+	public void lookupData() throws ExecutionException, InterruptedException {
 		databaseAPI.readFromServer();
 	}
 }
