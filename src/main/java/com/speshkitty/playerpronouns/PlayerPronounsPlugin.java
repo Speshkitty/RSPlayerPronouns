@@ -3,7 +3,6 @@ package com.speshkitty.playerpronouns;
 import com.google.inject.Provides;
 import javax.inject.Inject;
 
-import com.sun.jna.platform.win32.Guid;
 import lombok.extern.slf4j.Slf4j;
 import net.runelite.api.*;
 import net.runelite.api.events.GameStateChanged;
@@ -21,9 +20,7 @@ import net.runelite.client.util.Text;
 
 import java.io.File;
 import java.time.temporal.ChronoUnit;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 
 @Slf4j
 @PluginDescriptor(
@@ -63,14 +60,15 @@ public class PlayerPronounsPlugin extends Plugin
 		String key = configManager.getConfiguration(PlayerPronounsConfig.GROUP, keyLocation);
 
 		if(key == null || key.isEmpty()) {
-			key = String.valueOf(Guid.GUID.newGuid());
+
+			key = String.valueOf(UUID.randomUUID());
 			configManager.setConfiguration(PlayerPronounsConfig.GROUP, keyLocation, key);
 		}
 		return key;
 	}
 
 	@Override
-	protected void startUp() throws Exception {
+	protected void startUp(){
 		log.info("Player Pronouns starting...");
 		overlayManager.add(overlay);
 		if (client.getGameState() == GameState.LOGGED_IN) {
@@ -88,7 +86,7 @@ public class PlayerPronounsPlugin extends Plugin
 	}
 
 	@Override
-	protected void shutDown() throws Exception
+	protected void shutDown()
 	{
 		overlayManager.remove(overlay);
 		databaseAPI.destroy();
@@ -136,7 +134,7 @@ public class PlayerPronounsPlugin extends Plugin
 	boolean shouldUpdateConfig = true;
 
 	@Subscribe
-	public void onConfigChanged(ConfigChanged configChanged) throws ExecutionException, InterruptedException {
+	public void onConfigChanged(ConfigChanged configChanged) {
 		if(!shouldUpdateConfig) {
 			shouldUpdateConfig = true;
 			return;
@@ -155,7 +153,7 @@ public class PlayerPronounsPlugin extends Plugin
 			unit = ChronoUnit.MINUTES,
 			asynchronous = true
 	)
-	public void lookupData() throws ExecutionException, InterruptedException {
+	public void lookupData() {
 		databaseAPI.readFromServer();
 	}
 }
