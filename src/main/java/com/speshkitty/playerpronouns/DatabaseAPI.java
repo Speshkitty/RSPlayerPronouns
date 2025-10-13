@@ -18,7 +18,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.zip.GZIPInputStream;
 
 @Slf4j
@@ -62,114 +61,119 @@ public class DatabaseAPI {
     Type typeMyType = new TypeToken<List<DataBean>>() {}.getType();
 
     protected void readFromServer() {
-        CompletableFuture<Void> future = CompletableFuture.runAsync(new Runnable() {
-            @Override
-            public void run() {
-                log.debug("Beginning read from server...");
+        log.debug("Beginning read from server...");
 
-                Request request = new Request.Builder()
-                        .url(lookupAddress)
-                        .get()
-                        .build();
+        Request request = new Request.Builder()
+                .url(lookupAddress)
+                .get()
+                .build();
 
-                try (Response response = okHttpClient.newCall(request).execute()) {
-                    log.debug("Request sent");
-                    if (response.body() == null) return;
-                    ResponseBody responseBody = response.body();
-                    log.debug("Response received!");
+        okHttpClient.newCall(request).enqueue(
+                new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        log.error("Error contacting server!");
+                        log.error(e.getMessage());
+                    }
 
-                    String decompressed;
-                    try (final GZIPInputStream gzipInput = new GZIPInputStream(responseBody.byteStream())
-                    ) {
-                        StringBuilder writer = new StringBuilder ();
-                        int b ;
-                        while((b = gzipInput.read()) != -1) {
-                            writer.append((char)b);
+                    @Override
+                    public void onResponse(Call call, Response response) throws UncheckedIOException {
+                        log.debug("Request sent");
+                        if (response.body() == null) return;
+                        ResponseBody responseBody = response.body();
+                        log.debug("Response received!");
+
+                        String decompressed;
+                        try (final GZIPInputStream gzipInput = new GZIPInputStream(responseBody.byteStream())
+                        ) {
+                            StringBuilder writer = new StringBuilder();
+                            int b;
+                            while ((b = gzipInput.read()) != -1) {
+                                writer.append((char) b);
+                            }
+                            decompressed = writer.toString(); //tasty JSON data
+
+
+                        } catch (IOException e) {
+                            throw new UncheckedIOException("Error while decompressing GZIP!", e);
                         }
-                        decompressed = writer.toString(); //tasty JSON data
 
-
-                    } catch (IOException e) {
-                        throw new UncheckedIOException("Error while decompressing GZIP!", e);
-                    }
-
-                    try {
-                        List<DataBean> test = gson.fromJson(decompressed, typeMyType);
-                        knownPronouns.clear();
-                        for(DataBean bean : test){
-                            knownPronouns.put(bean.getId(), bean.getPronoun());
+                        try {
+                            List<DataBean> test = gson.fromJson(decompressed, typeMyType);
+                            knownPronouns.clear();
+                            for (DataBean bean : test) {
+                                knownPronouns.put(bean.getId(), bean.getPronoun());
+                            }
+                        } catch (Exception e) {
+                            sendMessage("There was an unexpected error loading pronoun data from the server!");
+                            sendMessage("This will be automatically retried in 30 minutes.");
+                            log.error("Error parsing json!");
+                            log.error(e.getMessage());
                         }
                     }
-                    catch (Exception e){
-                        sendMessage("There was an error loading pronoun data from the server!");
-                        sendMessage("This will be automatically retried in 30 minutes.");
-                        log.error("Error parsing json!");
-                        e.printStackTrace();
-                    }
-
-                } catch (IOException e) {
-                    log.error("Error communicating with server!");
                 }
-            }
-        });
+        );
     }
 
     protected void putPlayersPronoun(Pronoun oldPronoun, boolean isLoginTriggered) {
-        CompletableFuture<Void> future = CompletableFuture.runAsync(new Runnable() {
-            @Override
-            public void run() {
-                if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
-                    return;
-                }
-                log.debug("Beginning pronoun update");
-                int pronounToPut = config.presetPronoun().getInternalValue();
 
-                String apiKey = playerPronounsPlugin.getOrCreateApiKey();
+        if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
+            return;
+        }
+        log.debug("Beginning pronoun update");
+        int pronounToPut = config.presetPronoun().getInternalValue();
 
-                JsonObject data = new JsonObject();
-                data.addProperty("username", playerPronounsPlugin.getPlayerNameHashed());
-                data.addProperty("pronoun", pronounToPut);
+        String apiKey = playerPronounsPlugin.getOrCreateApiKey();
 
-                data.addProperty("apikey", apiKey);
+        JsonObject data = new JsonObject();
+        data.addProperty("username", playerPronounsPlugin.getPlayerNameHashed());
+        data.addProperty("pronoun", pronounToPut);
 
-                RequestBody body = RequestBody.create(JSON, data.toString());
+        data.addProperty("apikey", apiKey);
 
-                //log.debug(data.toString());
+        RequestBody body = RequestBody.create(JSON, data.toString());
 
-                Request request = new Request.Builder()
-                        .url(apiAddress)
-                        .put(body)
-                        .build();
+        //log.debug(data.toString());
 
-                try (Response response = okHttpClient.newCall(request).execute()) {
+        Request request = new Request.Builder()
+                .url(apiAddress)
+                .put(body)
+                .build();
 
-                    if (response.body() == null) return;
-                    JsonObject responseData = gson.fromJson(response.body().string(), JsonObject.class);
-                    JsonPrimitive statusCodePrim = responseData.getAsJsonPrimitive("statusCode");
-                    JsonPrimitive responseMessagePrim = responseData.getAsJsonPrimitive("body");
-
-                    int statusCode = statusCodePrim == null ? 430 : statusCodePrim.getAsInt();
-                    String responseMessage = responseMessagePrim == null ? "You are likely being rate limited!" : responseMessagePrim.getAsString();
-
-                    if (responseData.has("apikey")) {
-                        configManager.setConfiguration(PlayerPronounsConfig.GROUP,
-                                "apikey." + playerPronounsPlugin.getPlayerNameHashed(),
-                                responseData.getAsJsonPrimitive("apikey").getAsString());
-                        sendMessage("API key has been received and set, and is stored in your RuneLite config. Do not share this!");
-                        sendMessage("If you lose this, you will not be able to update your pronoun until it is removed from the database!");
+        okHttpClient.newCall(request).enqueue(
+                new Callback() {
+                    @Override
+                    public void onFailure(Call call, IOException e) {
+                        log.error("Error contacting server!");
+                        log.error(e.getMessage());
                     }
 
-                    if (statusCode == 200) {
-                        if (!isLoginTriggered) sendMessage(responseMessage);
-                    } else {
-                        if (!isLoginTriggered) sendMessage("Error " + statusCode + " - " + responseMessage);
-                        resetPronounConfig(oldPronoun);
+                    @Override
+                    public void onResponse(Call call, Response response) throws IOException {
+                        JsonObject responseData = gson.fromJson(response.body().string(), JsonObject.class);
+                        JsonPrimitive statusCodePrim = responseData.getAsJsonPrimitive("statusCode");
+                        JsonPrimitive responseMessagePrim = responseData.getAsJsonPrimitive("body");
+
+                        int statusCode = statusCodePrim == null ? 430 : statusCodePrim.getAsInt();
+                        String responseMessage = responseMessagePrim == null ? "You are likely being rate limited!" : responseMessagePrim.getAsString();
+
+                        if (responseData.has("apikey")) { //I think this is no longer needed, as the api key is generated clientside and sent with initial setup, but leaving it here for safety
+                            configManager.setConfiguration(PlayerPronounsConfig.GROUP,
+                                    "apikey." + playerPronounsPlugin.getPlayerNameHashed(),
+                                    responseData.getAsJsonPrimitive("apikey").getAsString());
+                            sendMessage("API key has been received and set, and is stored in your RuneLite config. Do not share this!");
+                            sendMessage("If you lose this, you will not be able to update your pronoun until it is removed from the database!");
+                        }
+
+                        if (statusCode == 200) {
+                            if (!isLoginTriggered) sendMessage(responseMessage);
+                        } else {
+                            if (!isLoginTriggered) sendMessage("Error " + statusCode + " - " + responseMessage);
+                            resetPronounConfig(oldPronoun);
+                        }
                     }
-                } catch (IOException e) {
-                    log.error("Error putting data to server!");
                 }
-            }
-        });
+        );
     }
 
     private void resetPronounConfig(Pronoun pronoun){
@@ -204,7 +208,8 @@ public class DatabaseAPI {
             }
             return hexString.toString();
         } catch (NoSuchAlgorithmException e) {
-            e.printStackTrace();
+            log.error("Unable to MD5 username!");
+            log.error(e.getMessage());
             return "";
         }
     }
