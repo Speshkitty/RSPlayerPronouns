@@ -47,7 +47,7 @@ public class PlayerPronounsOverlay extends Overlay {
 
         List<Player> checkedPlayers = new ArrayList<>();
 
-        MenuEntry[] list = client.getMenuEntries();
+        MenuEntry[] list = client.getMenu().getMenuEntries();
 
         if(config.showInChat()) {
             for (MenuEntry entry : list) {
