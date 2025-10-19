@@ -6,7 +6,7 @@ public enum Pronoun {
     HE_HIM (0, "He/Him"),
     SHE_HER (10, "She/Her"),
     HE_THEY (20, "He/They"),
-    HE_SHE (25, "He/They"),
+    HE_SHE (25, "He/She"),
     SHE_THEY (30, "She/They"),
     THEY_THEM(40, "They/Them"),
     IT_ITS(50, "It/Its"),
