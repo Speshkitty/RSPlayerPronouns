@@ -76,10 +76,10 @@ public class PlayerPronounsPlugin extends Plugin
 		}
 
 		if (new File(RuneLite.RUNELITE_DIR + "/pronouns/pronouns.json").delete()) {
-			log.debug("Deleted file: " + RuneLite.RUNELITE_DIR + "/pronouns/pronouns.json");
+            log.debug("Deleted file: {}/pronouns/pronouns.json", RuneLite.RUNELITE_DIR);
 		}
 		if (new File(RuneLite.RUNELITE_DIR + "/pronouns").delete()) {
-			log.debug("Deleted folder: " + RuneLite.RUNELITE_DIR + "/pronouns");
+            log.debug("Deleted folder: {}/pronouns", RuneLite.RUNELITE_DIR);
 		}
 		databaseAPI.readFromServer();
 		log.info("Player Pronouns started!");
@@ -103,7 +103,7 @@ public class PlayerPronounsPlugin extends Plugin
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
-		if(gameStateChanged.getGameState() == GameState.LOGGING_IN) {
+		if(gameStateChanged.getGameState() == GameState.LOADING || gameStateChanged.getGameState() == GameState.LOGGING_IN) {
 			logging_in = true;
 		}
 		//our last state was logging in
@@ -115,6 +115,7 @@ public class PlayerPronounsPlugin extends Plugin
 					if(client.getLocalPlayer() == null || client.getLocalPlayer().getName() == null) {
 						return false;
 					}
+
 					playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
 					if(playerNameHashed.isEmpty()) {
 						return false;

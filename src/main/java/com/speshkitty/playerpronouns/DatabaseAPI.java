@@ -117,7 +117,9 @@ public class DatabaseAPI {
 
     protected void putPlayersPronoun(Pronoun oldPronoun, boolean isLoginTriggered) {
 
+
         if (client.getGameState() != GameState.LOGGED_IN || playerPronounsPlugin.getPlayerNameHashed().isEmpty()) {
+            log.debug("Failed to send update - either we aren't logged in or don't have a name");
             return;
         }
         log.debug("Beginning pronoun update");
@@ -150,6 +152,7 @@ public class DatabaseAPI {
 
                     @Override
                     public void onResponse(Call call, Response response) throws IOException {
+                        log.debug("Response received...");
                         JsonObject responseData = gson.fromJson(response.body().string(), JsonObject.class);
                         JsonPrimitive statusCodePrim = responseData.getAsJsonPrimitive("statusCode");
                         JsonPrimitive responseMessagePrim = responseData.getAsJsonPrimitive("body");
@@ -168,7 +171,7 @@ public class DatabaseAPI {
                         if (statusCode == 200) {
                             if (!isLoginTriggered) sendMessage(responseMessage);
                         } else {
-                            if (!isLoginTriggered) sendMessage("Error " + statusCode + " - " + responseMessage);
+                            sendMessage("Error " + statusCode + " - " + responseMessage);
                             resetPronounConfig(oldPronoun);
                         }
                     }
