@@ -103,7 +103,7 @@ public class PlayerPronounsPlugin extends Plugin
 
 	@Subscribe
 	public void onGameStateChanged(GameStateChanged gameStateChanged) {
-		if(gameStateChanged.getGameState() == GameState.LOADING || gameStateChanged.getGameState() == GameState.LOGGING_IN) {
+		if(gameStateChanged.getGameState() == GameState.LOGGING_IN) {
 			logging_in = true;
 		}
 		//our last state was logging in
@@ -116,16 +116,12 @@ public class PlayerPronounsPlugin extends Plugin
 						return false;
 					}
 
-					playerNameHashed = databaseAPI.hashString(client.getLocalPlayer().getName());
+					playerNameHashed = getPlayerNameHashed();
 					if(playerNameHashed.isEmpty()) {
 						return false;
 					}
-					else
-					{
-						if(!config.pronoun().isEmpty()) {
-							databaseAPI.putPlayersPronoun(config.presetPronoun(), true);
-						}
-					}
+
+					databaseAPI.putPlayersPronoun(config.presetPronoun(), true);
 					return true;
 				}
 			);
@@ -136,6 +132,7 @@ public class PlayerPronounsPlugin extends Plugin
 
 	@Subscribe
 	public void onConfigChanged(ConfigChanged configChanged) {
+
 		if(!shouldUpdateConfig) {
 			shouldUpdateConfig = true;
 			return;
