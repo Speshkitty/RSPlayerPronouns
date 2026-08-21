@@ -11,7 +11,8 @@ public enum Pronoun {
     THEY_THEM(40, "They/Them"),
     IT_ITS(50, "It/Its"),
     ANY(100, "Any"),
-    ASK(200, "Ask");
+    ASK(200, "Ask"),
+    NO_UPDATE(500, "Do not update");
     //OTHER(500, "Other");
 
     @Getter
